@@ -115,7 +115,9 @@ public class MetricsRegistry {
      * @return a new {@link Counter}
      */
     public Counter newCounter(MetricName metricName) {
-        return getOrAdd(metricName, new Counter());
+        Counter counter = getOrAdd(metricName, new Counter());
+        usedMetrics.put(metricName, counter);
+        return counter;
     }
 
     /**
@@ -493,7 +495,6 @@ public class MetricsRegistry {
         if (existingMetric == null) {
             final Metric justAddedMetric = metrics.putIfAbsent(name, metric);
             if (justAddedMetric == null) {
-                usedMetrics.put(name, metric);
                 notifyMetricAdded(name, metric);
                 return metric;
             }
