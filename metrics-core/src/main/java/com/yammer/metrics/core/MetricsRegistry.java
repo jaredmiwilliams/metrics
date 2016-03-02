@@ -79,7 +79,9 @@ public class MetricsRegistry {
      */
     public <T> Gauge<T> newGauge(MetricName metricName,
                                  Gauge<T> metric) {
-        return getOrAdd(metricName, metric);
+        Gauge<T> gauge = getOrAdd(metricName, metric);
+        usedMetrics.put(metricName, gauge);
+        return gauge;
     }
 
     /**
