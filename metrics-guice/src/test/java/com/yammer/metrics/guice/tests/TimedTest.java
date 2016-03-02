@@ -63,7 +63,7 @@ public class TimedTest {
     @Test
     public void aTimedAnnotatedMethodWithDefaultScope() throws Exception {
 
-        instance.doAThing();
+        instance.doAThingWithDefaultScope();
 
         final Metric metric = registry.allMetrics().get(new MetricName(InstrumentedWithTimed.class,
                                                                        "doAThingWithDefaultScope"));
@@ -74,7 +74,7 @@ public class TimedTest {
     @Test
     public void aTimedAnnotatedMethodWithProtectedScope() throws Exception {
 
-        instance.doAThing();
+        instance.doAThingWithProtectedScope();
 
         final Metric metric = registry.allMetrics().get(new MetricName(InstrumentedWithTimed.class,
                                                                        "doAThingWithProtectedScope"));
