@@ -1,6 +1,7 @@
 package com.yammer.metrics.core;
 
 import com.yammer.metrics.core.Histogram.SampleType;
+import com.yammer.metrics.util.MetricTracker;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -12,6 +13,7 @@ public class MetricsRegistry {
     private static final int EXPECTED_METRIC_COUNT = 1024;
     private final Clock clock;
     private final ConcurrentMap<MetricName, Metric> metrics;
+    private final ConcurrentMap<MetricName, Metric> usedMetrics;
     private final ThreadPools threadPools;
     private final List<MetricsRegistryListener> listeners;
 
@@ -30,6 +32,7 @@ public class MetricsRegistry {
     public MetricsRegistry(Clock clock) {
         this.clock = clock;
         this.metrics = newMetricsMap();
+        this.usedMetrics = newMetricsMap();
         this.threadPools = new ThreadPools();
         this.listeners = new CopyOnWriteArrayList<MetricsRegistryListener>();
     }
@@ -181,8 +184,8 @@ public class MetricsRegistry {
      */
     public Histogram newHistogram(MetricName metricName,
                                   boolean biased) {
-        return getOrAdd(metricName,
-                        new Histogram(biased ? SampleType.BIASED : SampleType.UNIFORM));
+        Histogram histogram = new LazyHistogram(tracker(metricName), biased ? SampleType.BIASED : SampleType.UNIFORM);
+        return getOrAdd(metricName, histogram);
     }
 
     /**
@@ -237,7 +240,8 @@ public class MetricsRegistry {
         if (existingMetric != null) {
             return (Meter) existingMetric;
         }
-        return getOrAdd(metricName, new Meter(newMeterTickThreadPool(), eventType, unit, clock));
+        Meter meter = new LazyMeter(tracker(metricName), newMeterTickThreadPool(), eventType, unit, clock);
+        return getOrAdd(metricName, meter);
     }
 
     /**
@@ -317,8 +321,8 @@ public class MetricsRegistry {
         if (existingMetric != null) {
             return (Timer) existingMetric;
         }
-        return getOrAdd(metricName,
-                        new Timer(newMeterTickThreadPool(), durationUnit, rateUnit, clock));
+        Timer timer = new LazyTimer(tracker(metricName), newMeterTickThreadPool(), durationUnit, rateUnit, clock);
+        return getOrAdd(metricName, timer);
     }
 
     /**
@@ -327,7 +331,7 @@ public class MetricsRegistry {
      * @return an unmodifiable map of all metrics and their names
      */
     public Map<MetricName, Metric> allMetrics() {
-        return Collections.unmodifiableMap(metrics);
+        return Collections.unmodifiableMap(usedMetrics);
     }
 
     /**
@@ -349,7 +353,7 @@ public class MetricsRegistry {
     public SortedMap<String, SortedMap<MetricName, Metric>> groupedMetrics(MetricPredicate predicate) {
         final SortedMap<String, SortedMap<MetricName, Metric>> groups =
                 new TreeMap<String, SortedMap<MetricName, Metric>>();
-        for (Map.Entry<MetricName, Metric> entry : metrics.entrySet()) {
+        for (Map.Entry<MetricName, Metric> entry : usedMetrics.entrySet()) {
             final String qualifiedTypeName = entry.getKey().getGroup() + "." + entry.getKey()
                                                                                     .getType();
             if (predicate.matches(entry.getKey(), entry.getValue())) {
@@ -420,6 +424,7 @@ public class MetricsRegistry {
      */
     public void removeMetric(MetricName name) {
         final Metric metric = metrics.remove(name);
+        usedMetrics.remove(name);
         if (metric != null) {
             if (metric instanceof Stoppable) {
                 ((Stoppable) metric).stop();
@@ -488,6 +493,7 @@ public class MetricsRegistry {
         if (existingMetric == null) {
             final Metric justAddedMetric = metrics.putIfAbsent(name, metric);
             if (justAddedMetric == null) {
+                usedMetrics.put(name, metric);
                 notifyMetricAdded(name, metric);
                 return metric;
             }
@@ -499,6 +505,16 @@ public class MetricsRegistry {
             return (T) justAddedMetric;
         }
         return (T) existingMetric;
+    }
+
+    private MetricTracker tracker(final MetricName metricName) {
+        return new MetricTracker() {
+
+            @Override
+            public void track(Metric metric) {
+                usedMetrics.put(metricName, metric);
+            }
+        };
     }
 
     private ScheduledExecutorService newMeterTickThreadPool() {
