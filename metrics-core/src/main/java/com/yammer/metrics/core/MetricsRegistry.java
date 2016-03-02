@@ -508,7 +508,7 @@ public class MetricsRegistry {
         return (T) existingMetric;
     }
 
-    private MetricTracker tracker(final MetricName metricName) {
+    protected MetricTracker tracker(final MetricName metricName) {
         return new MetricTracker() {
 
             @Override

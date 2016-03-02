@@ -38,7 +38,9 @@ public abstract class AbstractPollingReporterTest {
 
     protected static class TestMetricsRegistry extends MetricsRegistry {
         public <T extends Metric> T add(MetricName name, T metric) {
-            return getOrAdd(name, metric);
+            T added = getOrAdd(name, metric);
+            tracker(name).track(added);
+            return added;
         }
     }
 
