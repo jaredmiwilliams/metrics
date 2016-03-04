@@ -2,6 +2,9 @@ package com.yammer.metrics.core;
 
 import javax.management.ObjectName;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A value class encapsulating a metric's owning class and name.
@@ -12,6 +15,7 @@ public class MetricName implements Comparable<MetricName> {
     private final String name;
     private final String scope;
     private final String mBeanName;
+    private final Map<String, String> tags;
 
     /**
      * Creates a new {@link MetricName} without a scope.
@@ -20,7 +24,7 @@ public class MetricName implements Comparable<MetricName> {
      * @param name  the name of the {@link Metric}
      */
     public MetricName(Class<?> klass, String name) {
-        this(klass, name, null);
+        this(klass, name, (String) null);
     }
 
     /**
@@ -31,7 +35,7 @@ public class MetricName implements Comparable<MetricName> {
      * @param name  the name of the {@link Metric}
      */
     public MetricName(String group, String type, String name) {
-        this(group, type, name, null);
+        this(group, type, name, (String) null);
     }
 
     /**
@@ -71,6 +75,62 @@ public class MetricName implements Comparable<MetricName> {
      *                  MBean.
      */
     public MetricName(String group, String type, String name, String scope, String mBeanName) {
+        this(group, type, name, scope, mBeanName, Collections.<String, String>emptyMap());
+    }
+
+    public MetricName(Class<?> klass, String name, Map<String, String> tags) {
+        this(klass, name, null, tags);
+    }
+
+    /**
+     * Creates a new {@link MetricName} without a scope.
+     *
+     * @param group the group to which the {@link Metric} belongs
+     * @param type  the type to which the {@link Metric} belongs
+     * @param name  the name of the {@link Metric}
+     */
+    public MetricName(String group, String type, String name, Map<String, String> tags) {
+        this(group, type, name, null, tags);
+    }
+
+    /**
+     * Creates a new {@link MetricName} without a scope.
+     *
+     * @param klass the {@link Class} to which the {@link Metric} belongs
+     * @param name  the name of the {@link Metric}
+     * @param scope the scope of the {@link Metric}
+     */
+    public MetricName(Class<?> klass, String name, String scope, Map<String, String> tags) {
+        this(klass.getPackage() == null ? "" : klass.getPackage().getName(),
+            klass.getSimpleName().replaceAll("\\$$", ""),
+            name,
+            scope,
+            tags);
+    }
+
+    /**
+     * Creates a new {@link MetricName} without a scope.
+     *
+     * @param group the group to which the {@link Metric} belongs
+     * @param type  the type to which the {@link Metric} belongs
+     * @param name  the name of the {@link Metric}
+     * @param scope the scope of the {@link Metric}
+     */
+    public MetricName(String group, String type, String name, String scope, Map<String, String> tags) {
+        this(group, type, name, scope, createMBeanName(group, type, name, scope), tags);
+    }
+
+    /**
+     * Creates a new {@link MetricName} without a scope.
+     *
+     * @param group     the group to which the {@link Metric} belongs
+     * @param type      the type to which the {@link Metric} belongs
+     * @param name      the name of the {@link Metric}
+     * @param scope     the scope of the {@link Metric}
+     * @param mBeanName the 'ObjectName', represented as a string, to use when registering the
+     *                  MBean.
+     */
+    public MetricName(String group, String type, String name, String scope, String mBeanName, Map<String, String> tags) {
         if (group == null || type == null) {
             throw new IllegalArgumentException("Both group and type need to be specified");
         }
@@ -82,6 +142,7 @@ public class MetricName implements Comparable<MetricName> {
         this.name = name;
         this.scope = scope;
         this.mBeanName = mBeanName;
+        this.tags = new HashMap<String, String>(tags);
     }
 
     /**
@@ -138,6 +199,10 @@ public class MetricName implements Comparable<MetricName> {
      */
     public String getMBeanName() {
         return mBeanName;
+    }
+
+    public Map<String, String> getTags() {
+        return Collections.unmodifiableMap(tags);
     }
 
     @Override
