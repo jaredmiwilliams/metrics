@@ -5,6 +5,8 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 /**
  * A value class encapsulating a metric's owning class and name.
@@ -117,7 +119,7 @@ public class MetricName implements Comparable<MetricName> {
      * @param scope the scope of the {@link Metric}
      */
     public MetricName(String group, String type, String name, String scope, Map<String, String> tags) {
-        this(group, type, name, scope, createMBeanName(group, type, name, scope), tags);
+        this(group, type, name, scope, createMBeanName(group, type, name, scope, tags), tags);
     }
 
     /**
@@ -229,6 +231,10 @@ public class MetricName implements Comparable<MetricName> {
     }
 
     private static String createMBeanName(String group, String type, String name, String scope) {
+        return createMBeanName(group, type, name, scope, Collections.<String, String>emptyMap());
+    }
+
+    private static String createMBeanName(String group, String type, String name, String scope, Map<String, String> tags) {
         final StringBuilder nameBuilder = new StringBuilder();
         nameBuilder.append(ObjectName.quote(group));
         nameBuilder.append(":type=");
@@ -240,6 +246,10 @@ public class MetricName implements Comparable<MetricName> {
         if (name.length() > 0) {
             nameBuilder.append(",name=");
             nameBuilder.append(ObjectName.quote(name));
+        }
+        for (Entry<String, String> tag : new TreeMap<String, String>(tags).entrySet()) {
+            nameBuilder.append(",").append(tag.getKey()).append("=");
+            nameBuilder.append(ObjectName.quote(tag.getValue()));
         }
         return nameBuilder.toString();
     }
